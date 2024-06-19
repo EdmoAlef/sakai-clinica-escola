@@ -8,11 +8,21 @@ const toast = useToast();
 
 const users = ref([]);
 const userDialog = ref(false);
+const userProfileDialog = ref(false);
 const deleteuserDialog = ref(false);
+const deleteuserProfileDialog = ref(false);
 const user = ref({});
+const userProfile = ref({});
 const dt = ref(null);
 const filters = ref({});
 const submitted = ref(false);
+const defaultProfiles = ref([
+    { name: 'Paciente', value: 1 , route :  'patients'},
+    { name: 'Professor', value: 2 , route : 'patients'},
+    { name: 'Aluno',   value: 3 , route : 'patients' }
+])
+
+const selectedProfile = ref({ name: 'Paciente', value: 1 , route : 'patients'});
 
 onBeforeMount(() => {
     initFilters();
@@ -28,8 +38,6 @@ const getUsers = async () => {
     });
 }
 
-console.log(user.value);
-
 const openNew = () => {
     user.value = {};
     submitted.value = false;
@@ -38,7 +46,35 @@ const openNew = () => {
 
 const hideDialog = () => {
     userDialog.value = false;
+    userProfileDialog.value = false;
     submitted.value = false;
+};
+
+const saveUserProfile = async () => {
+    submitted.value = true;
+    if (!userProfile.value.edit) {
+        userProfile.value.id = user.value.id;
+        await http.post(selectedProfile.value.route, userProfile.value).then((response) => {
+            toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Perfil Salvo com Sucesso', life: 4000 });
+            userProfileDialog.value = false;
+            user.value = {};
+            userProfile.value = {};
+            submitted.value = false;
+        }).catch((error) => {
+
+        });
+    } else {
+        await http.put(`${selectedProfile.value.route}/${userProfile.value.id}`, userProfile.value).then((response) => {
+            toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Perfil Alterado Com Sucesso', life: 4000 });
+            userProfileDialog.value = false;
+            user.value = {};
+            userProfile.value = {};
+            submitted.value = false;
+        }).catch((error) => {
+
+        });
+    }
+
 };
 
 const saveUser = async () => {
@@ -47,45 +83,70 @@ const saveUser = async () => {
     if (user.value.birth_date) {
         user.value.birth_date = user.value.birth_date.toISOString().slice(0, 10);
     }
-    
+
     if (user.value.phone) {
-        user.value.phone = phone.value.replace(/\D/g,''); ;
+        user.value.phone = phone.value.replace(/\D/g, '');;
     }
-    
+
     if (user.value.cpf) {
-        user.value.cpf = cpf.value.replace(/\D/g,''); ;
+        user.value.cpf = cpf.value.replace(/\D/g, '');;
     }
 
     if (!user.value.id) {
         await http.post('users', user.value).then((response) => {
             toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Usuário Salvo Com Sucesso', life: 4000 });
             userDialog.value = false;
+            submitted.value = false;
             user.value = {};
+            
             getUsers();
         }).catch((error) => {
             // console.log(error);
         });
-    }else{
+    } else {
         await http.put(`users/${user.value.id}`, user.value).then((response) => {
             toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Usuário Alterado Com Sucesso', life: 4000 });
             userDialog.value = false;
+            submitted.value = false;
             user.value = {};
             getUsers();
         }).catch((error) => {
             // console.log(error);
         });
     }
-   
+
 };
 
-const editUser = (editUser) => {
+const editUser =  (editUser) => {
     user.value = { ...editUser };
     userDialog.value = true;
+};
+
+const getProfile = async () => {
+    await http.get(`patients/${user.value.id}`).then((response) => {
+        userProfile.value = {};
+        if (response.data) {
+            userProfile.value = response.data;
+            userProfile.value.edit = true;
+        }
+    }).catch((error) => {
+
+    });
+}
+
+const editProfile = async (editProfile) => {
+    user.value = { ...editProfile };
+    await getProfile();
+    userProfileDialog.value = true;
 };
 
 const confirmeDeleteUser = (editUser) => {
     user.value = editUser;
     deleteuserDialog.value = true;
+};
+
+const changeProfile = () => {
+    console.log(selectedProfile.value.value);
 };
 
 const deleteUser = async () => {
@@ -94,6 +155,15 @@ const deleteUser = async () => {
         deleteuserDialog.value = false;
         user.value = {};
         await getUsers();
+    });
+};
+
+const deleteUserProfile = async () => {
+    await http.delete(`${selectedProfile.value.route}/${userProfile.value.id}`).then(async (response) => {
+        toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Perfil desvinculado com Sucesso', life: 4000 });
+        deleteuserProfileDialog.value = false;
+        userProfile.value = {};
+        await getProfile();
     });
 };
 
@@ -111,29 +181,24 @@ const initFilters = () => {
                 <Toolbar class="mb-4">
                     <template v-slot:start>
                         <div class="my-2">
-                            <Button label="Novo Usuário" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" />
+                            <Button label="Novo Usuário" icon="pi pi-plus" class="mr-2" severity="success"
+                                @click="openNew" />
                         </div>
                     </template>
                 </Toolbar>
 
-                <DataTable
-                    ref="dt"
-                    :value="users"
-                    v-model:selection="selectedProducts"
-                    dataKey="id"
-                    :paginator="true"
-                    :rows="10"
-                    :filters="filters"
+                <DataTable ref="dt" :value="users" v-model:selection="selectedProducts" dataKey="id" :paginator="true"
+                    :rows="10" :filters="filters"
                     paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
                     :rowsPerPageOptions="[5, 10, 25]"
-                    currentPageReportTemplate="Mostrando {first} - {last} de {totalRecords} usuários"
-                >
+                    currentPageReportTemplate="Mostrando {first} - {last} de {totalRecords} usuários">
                     <template #header>
                         <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
                             <h5 class="m-0">Usuários</h5>
                             <IconField iconPosition="left" class="block mt-2 md:mt-0">
                                 <InputIcon class="pi pi-search" />
-                                <InputText class="w-full sm:w-auto" v-model="filters['global'].value" placeholder="Search..." />
+                                <InputText class="w-full sm:w-auto" v-model="filters['global'].value"
+                                    placeholder="Search..." />
                             </IconField>
                         </div>
                     </template>
@@ -143,7 +208,7 @@ const initFilters = () => {
                             {{ slotProps.data.id }}
                         </template>
                     </Column>
-                    <Column field="name" header="Name" :sortable="true" headerStyle="min-width:10rem;">
+                    <Column field="name" header="Nome" :sortable="true" headerStyle="min-width:10rem;">
                         <template #body="slotProps">
                             <span class="p-column-title">Nome</span>
                             {{ slotProps.data.name }}
@@ -155,43 +220,56 @@ const initFilters = () => {
                             {{ slotProps.data.cpf }}
                         </template>
                     </Column>
-                    <Column field="email" header="email" :sortable="true" headerStyle="min-width:10rem;">
+                    <Column field="email" header="Email" :sortable="true" headerStyle="min-width:10rem;">
                         <template #body="slotProps">
                             <span class="p-column-title">Email</span>
                             {{ slotProps.data.email }}
                         </template>
                     </Column>
-                    <Column headerStyle="min-width:10rem;">
+                    <Column headerStyle="min-width:10rem;" header="Ações">
                         <template #body="slotProps">
-                            <Button icon="pi pi-pencil" class="mr-2" severity="success" rounded @click="editUser(slotProps.data)" />
-                            <Button icon="pi pi-trash" class="mt-2" severity="warning" rounded @click="confirmeDeleteUser(slotProps.data)" />
+                            <Button icon="pi pi-pencil" class="mr-2" severity="success" rounded
+                                @click="editUser(slotProps.data)" />
+                            <Button icon="pi pi-trash" class="mr-2 mt-2" severity="warning" rounded
+                                @click="confirmeDeleteUser(slotProps.data)" />
+
+                            <Button icon="pi pi-users" class="mt-2" severity="info" rounded
+                                @click="editProfile(slotProps.data)" />
                         </template>
                     </Column>
+
                 </DataTable>
 
-                <Dialog v-model:visible="userDialog" :style="{ width: '600px' }" header="Usuário" :modal="true" class="p-fluid">
-                    <img :src="'/demo/images/product/' + user.image" :alt="user.image" v-if="user.image" width="150" class="mt-0 mx-auto mb-5 block shadow-2" />
+                <Dialog v-model:visible="userDialog" :style="{ width: '600px' }" header="Usuário" :modal="true"
+                    class="p-fluid">
+                    <img :src="'/demo/images/product/' + user.image" :alt="user.image" v-if="user.image" width="150"
+                        class="mt-0 mx-auto mb-5 block shadow-2" />
                     <div class="field">
                         <label for="name">Nome</label>
-                        <InputText id="name" v-model.trim="user.name" required="true" autofocus :invalid="submitted && !user.name" />
+                        <InputText id="name" v-model.trim="user.name" required="true" autofocus
+                            :invalid="submitted && !user.name" />
                         <small class="p-invalid" v-if="submitted && !user.name">Nome é obrigatório.</small>
                     </div>
                     <div class="field">
                         <label for="naemailme">Email</label>
-                        <InputText id="email" type="email" v-model.trim="user.email" required="true" autofocus :invalid="submitted && !user.email" />
+                        <InputText id="email" type="email" v-model.trim="user.email" required="true" autofocus
+                            :invalid="submitted && !user.email" />
                         <small class="p-invalid" v-if="submitted && !user.email">Email é obrigatório.</small>
                     </div>
                     <div class="field">
                         <label for="password">Senha</label>
-                        <Password toggleMask id="password" type="password" v-model.trim="user.password" required="true" autofocus :invalid="submitted && !user.password" />
+                        <Password toggleMask id="password" type="password" v-model.trim="user.password" required="true"
+                            autofocus :invalid="submitted && !user.password" />
                         <small class="p-invalid" v-if="submitted && !user.password">Senha é obrigatório.</small>
                     </div>
 
                     <div class="formgrid grid">
                         <div class="field col">
                             <label for="birth_date">Nascimento</label>
-                            <Calendar id="birth_date" v-model="user.birth_date" dateFormat="dd/mm/yy" :invalid="submitted && !user.birth_date" :required="true" />
-                            <small class="p-invalid" v-if="submitted && !user.birth_date">Nascimento é obrigatório.</small>
+                            <Calendar id="birth_date" v-model="user.birth_date" dateFormat="dd/mm/yy"
+                                :invalid="submitted && !user.birth_date" :required="true" />
+                            <small class="p-invalid" v-if="submitted && !user.birth_date">Nascimento é
+                                obrigatório.</small>
                         </div>
                         <div class="field col">
                             <label for="cpf">CPF</label>
@@ -202,49 +280,94 @@ const initFilters = () => {
 
                     <div class="field">
                         <label for="address">Endereço</label>
-                        <InputText id="address" type="address" v-model.trim="user.address" required="true" autofocus :invalid="submitted && !user.address" />
+                        <InputText id="address" type="address" v-model.trim="user.address" required="true" autofocus
+                            :invalid="submitted && !user.address" />
                         <small class="p-invalid" v-if="submitted && !user.address">Endereço é obrigatório.</small>
                     </div>
 
                     <div class="formgrid grid">
                         <div class="field col">
                             <label for="number">Número</label>
-                            <InputNumber id="number" v-model="user.number"/>
+                            <InputNumber id="number" v-model="user.number" />
                         </div>
                         <div class="field col">
                             <label for="complement">Complemento</label>
-                            <InputText id="complement" v-model="user.complement"/>
+                            <InputText id="complement" v-model="user.complement" />
                         </div>
                     </div>
 
                     <div class="formgrid grid">
                         <div class="field col">
                             <label for="zip_code">CEP</label>
-                            <InputNumber id="zip_code" v-model="user.zip_code"  />
+                            <InputNumber id="zip_code" v-model="user.zip_code" />
                         </div>
                         <div class="field col">
                             <label for="phone">Telefone</label>
-                            <InputMask id="phone" mask="(99)99999-9999" v-model="user.phone" :invalid="submitted && !user.phone" :required="true" />
+                            <InputMask id="phone" mask="(99)99999-9999" v-model="user.phone"
+                                :invalid="submitted && !user.phone" :required="true" />
                             <small class="p-invalid" v-if="submitted && !user.phone">Telefone é obrigatório.</small>
                         </div>
                     </div>
 
                     <template #footer>
                         <Button label="Cancelar" icon="pi pi-times" severity="warning" text="" @click="hideDialog" />
-                        <Button label="Salvar"   icon="pi pi-check" text="" @click="saveUser" />
+                        <Button label="Salvar" icon="pi pi-check" text="" @click="saveUser" />
+                    </template>
+                </Dialog>
+
+                <Dialog v-model:visible="userProfileDialog" :style="{ width: '600px' }" header="Perfils do Usuário" :modal="true"
+                    class="p-fluid">
+                    <img :src="'/demo/images/product/' + user.image" :alt="user.image" v-if="user.image" width="150"
+                        class="mt-0 mx-auto mb-5 block shadow-2" />
+                    <div class="field text-center">
+                        <small>Configuração de perfil para {{user.name}}</small>
+                        <SelectButton v-model="selectedProfile" 
+                                      :options="defaultProfiles" 
+                                      @click="changeProfile"
+                                      class="mt-4" 
+                                      optionLabel="name" 
+                                      aria-labelledby="basic" />
+                    </div>
+                    <div class="field" v-if="selectedProfile.value == 1">
+                        <label for="allergies">Alergias</label>
+                        <Textarea v-model="userProfile.allergies" id="allergies" autoResize rows="5" cols="30" />
+                    </div>
+                    <div class="field" v-if="selectedProfile.value == 1">
+                        <label for="medical_conditions">Condição Médica</label>
+                        <Textarea v-model="userProfile.medical_conditions" id="medical_conditions" autoResize rows="5" cols="30" />
+                    </div>
+                    <div class="field" v-if="selectedProfile.value == 2">
+                        <label for="professional_registration">Registro Profissional</label>
+                        <InputText v-model="userProfile.professional_registration" id="professional_registration"
+                                    :invalid="submitted && !userProfile.professional_registration && selectedProfile.value == 2" :required="true" />
+                    </div>
+                    <template #footer>
+                        <Button label="Cancelar" icon="pi pi-times" severity="warning" text="" @click="hideDialog" />
+                        <Button label="Desvincular" v-if="userProfile.id" icon="pi pi-times" severity="danger" text="" @click="deleteuserProfileDialog=true" />
+                        <Button label="Salvar" icon="pi pi-check" text="" @click="saveUserProfile" />
+                    </template>
+                </Dialog>
+                
+                <Dialog v-model:visible="deleteuserProfileDialog" :style="{ width: '450px' }" header="Atenção!" :modal="true">
+                    <div class="flex align-items-center justify-content-center">
+                        <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem" />
+                        <span v-if="user">Tem certeza irá desvincular o perfil <b>{{ selectedProfile.name }}</b>?</span>
+                    </div>
+                    <template #footer>
+                        <Button label="Não" icon="pi pi-times" severity="warning" text
+                            @click="deleteuserProfileDialog = false" />
+                        <Button label="Sim" icon="pi pi-check" text @click="deleteUserProfile" />
                     </template>
                 </Dialog>
 
                 <Dialog v-model:visible="deleteuserDialog" :style="{ width: '450px' }" header="Atenção!" :modal="true">
                     <div class="flex align-items-center justify-content-center">
                         <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem" />
-                        <span v-if="user"
-                            >Tem certeza que irá excluir o usuário <b>{{ user.name }}</b
-                            >?</span
-                        >
+                        <span v-if="user">Tem certeza que irá excluir o usuário <b>{{ user.name }}</b>?</span>
                     </div>
                     <template #footer>
-                        <Button label="Não" icon="pi pi-times" severity="warning" text @click="deleteuserDialog = false" />
+                        <Button label="Não" icon="pi pi-times" severity="warning" text
+                            @click="deleteuserDialog = false" />
                         <Button label="Sim" icon="pi pi-check" text @click="deleteUser" />
                     </template>
                 </Dialog>
