@@ -15,18 +15,19 @@ const user = ref({});
 const userProfile = ref({});
 const dt = ref(null);
 const filters = ref({});
-const submitted = ref(false);
-const defaultProfiles = ref([
-    { name: 'Paciente', value: 1 , route :  'patients'},
-    { name: 'Professor', value: 2 , route : 'patients'},
-    { name: 'Aluno',   value: 3 , route : 'patients' }
-])
+const professors = ref(null);
 
-const selectedProfile = ref({ name: 'Paciente', value: 1 , route : 'patients'});
+const submitted = ref(false);
+const defaultProfiles = ref([]);
+const edit = ref({});
+
+const selectedProfile = ref([]);
 
 onBeforeMount(() => {
     initFilters();
+    initDefaultValues();
 });
+
 onMounted(() => {
     getUsers();
     console.log(users.value)
@@ -36,6 +37,16 @@ const getUsers = async () => {
     await http.get('users').then((response) => {
         users.value = response.data;
     });
+}
+
+const initDefaultValues = () => {
+    defaultProfiles.value = {...[
+        { name: 'Paciente', value: 1, route: 'patients' , disabled : false},
+        { name: 'Professor', value: 2, route: 'professors' , disabled : false},
+        { name: 'Aluno', value: 3, route: 'students' , disabled : false}
+    ]};
+
+    selectedProfile.value = { name: 'Paciente', value: 1, route: 'patients' };
 }
 
 const openNew = () => {
@@ -52,30 +63,54 @@ const hideDialog = () => {
 
 const saveUserProfile = async () => {
     submitted.value = true;
+    let formAction = getDataToSend();
     if (!userProfile.value.edit) {
-        userProfile.value.id = user.value.id;
-        await http.post(selectedProfile.value.route, userProfile.value).then((response) => {
+        formAction.append('id', user.value.id);
+        await http.post(selectedProfile.value.route, formAction).then((response) => {
             toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Perfil Salvo com Sucesso', life: 4000 });
             userProfileDialog.value = false;
             user.value = {};
             userProfile.value = {};
             submitted.value = false;
         }).catch((error) => {
+            userProfile.value.id = null;
+            toast.add({ severity: 'error', summary: 'Erro', detail: 'Não foi possível salvar o perfil', life: 4000 });
 
         });
     } else {
-        await http.put(`${selectedProfile.value.route}/${userProfile.value.id}`, userProfile.value).then((response) => {
+        delete userProfile.value.edit;
+        await http.put(`${selectedProfile.value.route}/${userProfile.value.id}`, formAction).then((response) => {
             toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Perfil Alterado Com Sucesso', life: 4000 });
             userProfileDialog.value = false;
             user.value = {};
             userProfile.value = {};
             submitted.value = false;
         }).catch((error) => {
-
+            userProfile.value.id = null;
+            toast.add({ severity: 'error', summary: 'Erro', detail: 'Não foi possível salvar o perfil', life: 4000 });
         });
     }
-
 };
+
+const getDataToSend = () => {
+    let data = new FormData();
+    switch (selectedProfile.value.value) {
+        case 1:
+            data.append('allergies', userProfile.value.allergies);
+            data.append('medical_conditions', userProfile.value.medical_conditions);
+            break;
+        case 2:
+            data.append('professional_registration', userProfile.value.professional_registration);
+            break;
+        case 3:
+            data.append('registration', userProfile.value.registration);
+            data.append('semester', userProfile.value.semester);
+            data.append('advisor_id', userProfile.value.advisor_id);
+            break;
+    }
+
+    return data;
+}
 
 const saveUser = async () => {
     submitted.value = true;
@@ -98,11 +133,12 @@ const saveUser = async () => {
             userDialog.value = false;
             submitted.value = false;
             user.value = {};
-            
+
             getUsers();
         }).catch((error) => {
             // console.log(error);
         });
+
     } else {
         await http.put(`users/${user.value.id}`, user.value).then((response) => {
             toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Usuário Alterado Com Sucesso', life: 4000 });
@@ -114,20 +150,63 @@ const saveUser = async () => {
             // console.log(error);
         });
     }
-
 };
 
-const editUser =  (editUser) => {
+const editUser = (editUser) => {
     user.value = { ...editUser };
     userDialog.value = true;
 };
 
 const getProfile = async () => {
+    initDefaultValues();
+    userProfile.value = {};
     await http.get(`patients/${user.value.id}`).then((response) => {
-        userProfile.value = {};
+        console.log("adasdasd");
+
         if (response.data) {
+            userProfile.value = {};
+            userProfile.value.allergies          = response.data.allergies;
+            userProfile.value.medical_conditions = response.data.medical_conditions;
+            userProfile.value.id                 = response.data.id;
+            userProfile.value.edit               = true;
+            edit.value.tipo                      = 1;
+            defaultProfiles.value[1].disabled = true;
+            defaultProfiles.value[2].disabled = true;
+            console.log('1');
+            selectedProfile.value = { name: 'Paciente', value: 1, route: 'patients' };
+        }
+    }).catch((error) => {
+        console.log("adasdasd");
+    });
+
+    await http.get(`professors/${user.value.id}`).then((response) => {
+        if (response.data) {
+            userProfile.value = {};
+            userProfile.value.professional_registration = response.data.professional_registration;
+            userProfile.value.id                 = response.data.id;
+            userProfile.value.edit               = true;
+            edit.value.tipo                      = 2;
+            defaultProfiles.value[0].disabled = true;
+            defaultProfiles.value[2].disabled = true;
+            console.log('2');
+
+            selectedProfile.value = { name: 'Professor', value: 2, route: 'professors' };
+        }
+    }).catch((error) => {
+
+    })
+
+    await http.get(`students/${user.value.id}`).then((response) => {
+        if (response.data) {
+            userProfile.value = {};
             userProfile.value = response.data;
             userProfile.value.edit = true;
+            edit.value.tipo = 3;
+            selectedProfile.value = { name: 'Aluno', value: 3, route: 'students' };
+            defaultProfiles.value[0].disabled = true;
+            defaultProfiles.value[1].disabled = true;
+            console.log('3');
+
         }
     }).catch((error) => {
 
@@ -145,15 +224,29 @@ const confirmeDeleteUser = (editUser) => {
     deleteuserDialog.value = true;
 };
 
-const changeProfile = () => {
-    console.log(selectedProfile.value.value);
+const changeProfile = async () => {
+    await findProfessors();
 };
+
+const findProfessors = async () => {
+    professors.value  = [];
+    await http.get(`professors`).then(async (response) => {
+        let data = response.data;
+        data.map(professor =>  {
+            professors.value.push({
+                name : professor.users.name,
+                value : professor.users.id
+            });
+        })
+    });
+}
 
 const deleteUser = async () => {
     await http.delete(`users/${user.value.id}`).then(async (response) => {
         toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Usuário Deletado Com Sucesso', life: 4000 });
         deleteuserDialog.value = false;
         user.value = {};
+        defaultProfiles.value = {};
         await getUsers();
     });
 };
@@ -161,8 +254,12 @@ const deleteUser = async () => {
 const deleteUserProfile = async () => {
     await http.delete(`${selectedProfile.value.route}/${userProfile.value.id}`).then(async (response) => {
         toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Perfil desvinculado com Sucesso', life: 4000 });
+        userProfileDialog.value = false;
         deleteuserProfileDialog.value = false;
         userProfile.value = {};
+        defaultProfiles.value = {};
+        edit.value.tipo  = 1;
+        initDefaultValues();
         await getProfile();
     });
 };
@@ -172,6 +269,7 @@ const initFilters = () => {
         global: { value: null, matchMode: FilterMatchMode.CONTAINS }
     };
 };
+
 </script>
 
 <template>
@@ -315,18 +413,14 @@ const initFilters = () => {
                     </template>
                 </Dialog>
 
-                <Dialog v-model:visible="userProfileDialog" :style="{ width: '600px' }" header="Perfils do Usuário" :modal="true"
-                    class="p-fluid">
+                <Dialog v-model:visible="userProfileDialog" :style="{ width: '600px' }" header="Perfils do Usuário"
+                    :modal="true" class="p-fluid">
                     <img :src="'/demo/images/product/' + user.image" :alt="user.image" v-if="user.image" width="150"
                         class="mt-0 mx-auto mb-5 block shadow-2" />
                     <div class="field text-center">
-                        <small>Configuração de perfil para {{user.name}}</small>
-                        <SelectButton v-model="selectedProfile" 
-                                      :options="defaultProfiles" 
-                                      @click="changeProfile"
-                                      class="mt-4" 
-                                      optionLabel="name" 
-                                      aria-labelledby="basic" />
+                        <small>Configuração de perfil para {{ user.name }}</small>
+                        <SelectButton v-model="selectedProfile" :options="defaultProfiles" @click="changeProfile"
+                            class="mt-4" optionDisabled="disabled" optionLabel="name" aria-labelledby="basic" />
                     </div>
                     <div class="field" v-if="selectedProfile.value == 1">
                         <label for="allergies">Alergias</label>
@@ -334,21 +428,46 @@ const initFilters = () => {
                     </div>
                     <div class="field" v-if="selectedProfile.value == 1">
                         <label for="medical_conditions">Condição Médica</label>
-                        <Textarea v-model="userProfile.medical_conditions" id="medical_conditions" autoResize rows="5" cols="30" />
+                        <Textarea v-model="userProfile.medical_conditions" id="medical_conditions" autoResize rows="5"
+                            cols="30" />
                     </div>
                     <div class="field" v-if="selectedProfile.value == 2">
                         <label for="professional_registration">Registro Profissional</label>
                         <InputText v-model="userProfile.professional_registration" id="professional_registration"
-                                    :invalid="submitted && !userProfile.professional_registration && selectedProfile.value == 2" :required="true" />
+                            :invalid="submitted && !userProfile.professional_registration && selectedProfile.value == 2"
+                            :required="true" />
                     </div>
+
+                    <div class="formgrid grid" v-if="selectedProfile.value == 3">
+                        <div class="field col">
+                            <label for="registration">Matricula</label>
+                            <InputText v-model="userProfile.registration" id="registration"
+                                :invalid="submitted && !userProfile.registration && selectedProfile.value == 3"
+                                :required="true" />
+                        </div>
+                        <div class="field col">
+                            <label for="semester">Semestre</label>
+                            <InputText v-model="userProfile.semester" id="semester"
+                                :invalid="submitted && !userProfile.registration && selectedProfile.value == 3"
+                                :required="true" />
+                        </div>
+                    </div>
+                    <div class="field" v-if="selectedProfile.value == 3">
+                        <label for="advisor_id">Professor Responsável</label>
+                        <Dropdown v-model="userProfile.advisor_id" :options="professors" optionLabel="name"/>
+                    </div>
+
                     <template #footer>
                         <Button label="Cancelar" icon="pi pi-times" severity="warning" text="" @click="hideDialog" />
-                        <Button label="Desvincular" v-if="userProfile.id" icon="pi pi-times" severity="danger" text="" @click="deleteuserProfileDialog=true" />
+                        <Button label="Desvincular" v-if="userProfile.id && selectedProfile.value == edit.tipo" 
+                            icon="pi pi-times" severity="danger" text=""
+                            @click="deleteuserProfileDialog = true" />
                         <Button label="Salvar" icon="pi pi-check" text="" @click="saveUserProfile" />
                     </template>
                 </Dialog>
-                
-                <Dialog v-model:visible="deleteuserProfileDialog" :style="{ width: '450px' }" header="Atenção!" :modal="true">
+
+                <Dialog v-model:visible="deleteuserProfileDialog" :style="{ width: '450px' }" header="Atenção!"
+                    :modal="true">
                     <div class="flex align-items-center justify-content-center">
                         <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem" />
                         <span v-if="user">Tem certeza irá desvincular o perfil <b>{{ selectedProfile.name }}</b>?</span>
@@ -366,11 +485,11 @@ const initFilters = () => {
                         <span v-if="user">Tem certeza que irá excluir o usuário <b>{{ user.name }}</b>?</span>
                     </div>
                     <template #footer>
-                        <Button label="Não" icon="pi pi-times" severity="warning" text
-                            @click="deleteuserDialog = false" />
+                        <Button label="Não" icon="pi pi-times" severity="warning" text @click="deleteuserDialog = false" />
                         <Button label="Sim" icon="pi pi-check" text @click="deleteUser" />
                     </template>
                 </Dialog>
+
             </div>
         </div>
     </div>
