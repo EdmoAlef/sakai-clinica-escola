@@ -12,8 +12,11 @@ const model = ref([
         label: 'Cadastros',
         items: [
             { label: 'Usuários', icon: 'pi pi-fw pi-id-card', to: '/users' },
+            { label: 'Agenda', icon: 'pi pi-fw pi-calendar-times', to: '/appointments' },
+            { label: 'Consultas', icon: 'pi pi-fw pi-file-edit', to: '/consultations' },
         ]
     },
+    
     // {
     //     label: 'Prime Blocks',
     //     items: [
