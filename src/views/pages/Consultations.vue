@@ -5,7 +5,11 @@ import { useToast } from 'primevue/usetoast';
 import http from '@/service/Axios';
 
 const toast = useToast();
+const patient = ref([]);
 const patients = ref([]);
+
+const selectedPatient = ref([]);
+
 const appointment = ref({
     patient_id: null,
     appointment_date: null,
@@ -17,12 +21,22 @@ const appointments = ref([]);
 const appointmentStatus = ref([]);
 const appointmentDialog = ref(false);
 const appointmentDialogHeader = ref('');
+
 const selectedAppointmentStatusData = ref(null);
+const selectedAppointment = ref(null);
 const selectedAppointments = ref([]);
+const patientAppointmentDialog = ref(false);
+
+const user = ref({});
+const userProfile = ref({});
 const dt = ref(null);
 const filters = ref({});
 const professors = ref([]);
+const selectedProfessors = ref([]);
+
 const submitted = ref(false);
+const defaultProfiles = ref([]);
+const edit = ref({});
 
 onBeforeMount(() => {
     initFilters();
@@ -203,38 +217,6 @@ const editPatientAppointment = async (data) => {
     appointmentDialogHeader.value = 'Editar Consulta';
     appointmentDialog.value = true;
 };
-
-const newConsultation = async (data) => {
-    const consultation = {};
-    const required = [
-        'id'
-    ];
-
-    let label = {
-        'id': 'Agenda'
-    };
-
-    required.forEach((field) => {
-        if (!data[field]) {
-            toast.add({ severity: 'error', summary: 'Erro', detail: `${label[field]} não encontrado(a)`, life: 4000 });
-        }
-    });
-
-    if (required.some(field => !data[field])) {
-        return;
-    }
-
-    consultation.appointment_id = data.id;
-    consultation.status_id = 1;
-    consultation.duration = 0
-    consultation.schedule = new Date();
-
-    await http.post('consultations', consultation).then(() => {
-        toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Consulta Encaminhada Com Sucesso', life: 4000 });
-    }).catch(() => {
-        toast.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao Encaminhar Consulta', life: 4000 });
-    });
-};
 </script>
 
 <template>
@@ -293,9 +275,6 @@ const newConsultation = async (data) => {
                         <template #body="slotProps">
                             <Button icon="pi pi-calendar" class="mr-2" severity="info" rounded
                                 @click="editPatientAppointment(slotProps.data)" />
-                            <!-- Button Encaminhar para Consula-->
-                            <Button title="Encaminhar para Consulta" icon="pi pi-angle-right" class="mr-2"
-                                severity="success" rounded @click="newConsultation(slotProps.data)" />
                         </template>
                     </Column>
                 </DataTable>
