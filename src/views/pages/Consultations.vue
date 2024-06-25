@@ -1,42 +1,13 @@
 <script setup>
 import { FilterMatchMode } from 'primevue/api';
 import { ref, onMounted, onBeforeMount } from 'vue';
-import { useToast } from 'primevue/usetoast';
 import http from '@/service/Axios';
 
-const toast = useToast();
-const patient = ref([]);
-const patients = ref([]);
-
-const selectedPatient = ref([]);
-
-const appointment = ref({
-    patient_id: null,
-    appointment_date: null,
-    status_id: null,
-    professor_id: null,
-    notes: ''
-});
 const appointments = ref([]);
-const appointmentStatus = ref([]);
-const appointmentDialog = ref(false);
-const appointmentDialogHeader = ref('');
-
-const selectedAppointmentStatusData = ref(null);
-const selectedAppointment = ref(null);
 const selectedAppointments = ref([]);
-const patientAppointmentDialog = ref(false);
 
-const user = ref({});
-const userProfile = ref({});
 const dt = ref(null);
 const filters = ref({});
-const professors = ref([]);
-const selectedProfessors = ref([]);
-
-const submitted = ref(false);
-const defaultProfiles = ref([]);
-const edit = ref({});
 
 onBeforeMount(() => {
     initFilters();
@@ -49,75 +20,9 @@ onMounted(() => {
 
 const initDefaultValues = () => { };
 
-const openNew = async () => {
-    appointment.value = {};
-
-    await findPatient();
-    await findAppointmentStatus();
-    await findProfessors();
-    submitted.value = false;
-    appointmentDialog.value = true;
-    appointmentDialogHeader.value = 'Agendar Consulta';
-};
-
-const hideDialog = () => {
-    appointmentDialog.value = false;
-    appointmentDialogHeader.value = '';
-    submitted.value = false;
-    appointment.value = {};
-};
-
 const getAppointments = async () => {
-    await http.get('appointments').then((response) => {
+    await http.get('consultations').then((response) => {
         appointments.value = response.data;
-        //editart formato de date para dd/mm/yyyy hh:mm, somente data hora e minutos
-        appointments.value.map(appointment => {
-            //somente data hora e minutos, sem virgula
-            appointment.appointment_date = new Date(appointment.appointment_date);
-            //pegar data
-            appointment.date = appointment.appointment_date.toLocaleDateString('pt-BR');
-            //pegar somente data e hora
-            appointment.time = appointment.appointment_date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        });
-    });
-};
-
-const findAppointmentStatus = async () => {
-    appointmentStatus.value = [];
-    await http.get('appointments-status').then((response) => {
-        let data = response.data;
-        data.map(status => {
-            appointmentStatus.value.push({
-                name: status.status_name,
-                value: status.id
-            });
-        });
-    });
-};
-
-const findPatient = async () => {
-    patients.value = [];
-    await http.get('patients').then((response) => {
-        let data = response.data;
-        data.map(patient => {
-            patients.value.push({
-                name: patient.users.name,
-                value: patient.id
-            });
-        });
-    });
-};
-
-const findProfessors = async () => {
-    professors.value = [];
-    await http.get('professors').then((response) => {
-        let data = response.data;
-        data.map(professor => {
-            professors.value.push({
-                name: professor.users.name,
-                value: professor.users.id
-            });
-        });
     });
 };
 
@@ -127,111 +32,12 @@ const initFilters = () => {
     };
 };
 
-const savePatientAppointment = async () => {
-    
-    submitted.value = true;
-    const appointmentData = {
-        patient_id: (appointment.value.patient_id) ? appointment.value.patient_id.value : null,
-        professor_id: (appointment.value.professor_id) ? appointment.value.professor_id.value : null,
-        status_id: (appointment.value.status_id) ? appointment.value.status_id.value : null,
-        appointment_date: (appointment.value.appointment_date) ? appointment.value.appointment_date : null,
-        notes: (appointment.value.notes) ? appointment.value.notes : null
-    };
-    console.log(appointmentData.appointment_date);
-    let required = [
-        'patient_id',
-        'professor_id',
-        'status_id',
-        'appointment_date'
-    ];
-
-    let label = {
-        'patient_id': 'Paciente',
-        'professor_id': 'Psicólogo',
-        'status_id': 'Status',
-        'appointment_date': 'Data'
-    };
-
-    required.forEach((field) => {
-        if (!appointmentData[field]) {
-            toast.add({ severity: 'error', summary: 'Erro', detail: `Preencha o campo ${label[field]}`, life: 4000 });
-        }
-    });
-
-    if (required.some(field => !appointmentData[field])) {
-        return;
-    }
-
-    if (!appointment.value.id) {
-        await http.post('appointments', appointmentData).then(() => {
-            appointmentDialog.value = false;
-            appointmentDialogHeader.value = '';
-            submitted.value = false;
-            appointment.value = {};
-            getAppointments();    
-            toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Agendamento Salvo Com Sucesso', life: 4000 });
-        }).catch(() => {
-            toast.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao Salvar Agendamento', life: 4000 });
-        });
-        
-    } else {
-        await http.put(`appointments/${appointment.value.id}`, appointmentData).then(() => {
-            appointmentDialog.value = false;
-            appointmentDialogHeader.value = '';
-            submitted.value = false;
-            appointment.value = {};
-            getAppointments();
-            toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Agendamento Alterado Com Sucesso', life: 4000 });
-        }).catch(() => {
-            toast.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao Alterar Agendamento', life: 4000 });
-        });
-
-    }
-};
-
-const editPatientAppointment = async (data) => {
-
-    appointment.value = {
-        id: data.id,
-        patient_id: {
-            name: data.patients.users.name,
-            value: data.patient_id
-        },
-        professor_id: {
-            name: data.professors.users.name,
-            value: data.professor_id
-        },
-        status_id: {
-            name: data.appointmentstatuses.status_name,
-            value: data.status_id
-        },
-        appointment_date: data.appointment_date,
-        notes: data.notes
-    };
-
-    await findPatient();
-    await findAppointmentStatus();
-    await findProfessors();
-
-    submitted.value = false;
-    appointmentDialogHeader.value = 'Editar Consulta';
-    appointmentDialog.value = true;
-};
 </script>
 
 <template>
     <div class="grid">
         <div class="col-12">
             <div class="card">
-                <Toolbar class="mb-4">
-                    <template v-slot:start>
-                        <div class="my-2">
-                            <Button label="Agendar Consulta" icon="pi pi-plus" class="mr-2" severity="success"
-                                @click="openNew()" />
-                        </div>
-                    </template>
-                </Toolbar>
-
                 <DataTable ref="dt" :value="appointments" v-model:selection="selectedAppointments" dataKey="id"
                     :paginator="true" :rows="10" :filters="filters"
                     paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
@@ -239,7 +45,7 @@ const editPatientAppointment = async (data) => {
                     currentPageReportTemplate="Mostrando {first} - {last} de {totalRecords}">
                     <template #header>
                         <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
-                            <h5 class="m-0">Agenda</h5>
+                            <h5 class="m-0">Consultas</h5>
                             <IconField iconPosition="left" class="block mt-2 md:mt-0">
                                 <InputIcon class="pi pi-search" />
                                 <InputText class="w-full sm:w-auto" v-model="filters['global'].value"
@@ -256,72 +62,27 @@ const editPatientAppointment = async (data) => {
                     <Column field="appointment_date" header="Data" :sortable="true" headerStyle="min-width:10rem;">
                         <template #body="slotProps">
                             <span class="p-column-title">Data Agendada</span>
-                            {{ slotProps.data.date }} {{ slotProps.data.time }}
+                            {{ new Date(slotProps.data.schedule).toLocaleString() }}
                         </template>
                     </Column>
                     <Column field="patient" header="Paciente" :sortable="true" headerStyle="min-width:10rem;">
                         <template #body="slotProps">
                             <span class="p-column-title">Paciente</span>
-                            {{ slotProps.data.patients.users.name }}
+                            {{ slotProps.data.appointments.patients.users.name }}
                         </template>
                     </Column>
                     <Column field="professor" header="Psicólogo" :sortable="true" headerStyle="min-width:10rem;">
                         <template #body="slotProps">
                             <span class="p-column-title">Psicologo</span>
-                            {{ slotProps.data.professors.users.name }}
+                            {{ slotProps.data.appointments.professors.users.name }}
                         </template>
                     </Column>
                     <Column headerStyle="min-width:10rem;" header="Ações">
                         <template #body="slotProps">
-                            <Button icon="pi pi-calendar" class="mr-2" severity="info" rounded
-                                @click="editPatientAppointment(slotProps.data)" />
+                            <Button icon="pi pi-calendar" class="mr-2" severity="info" rounded />
                         </template>
                     </Column>
                 </DataTable>
-
-                <Dialog v-model:visible="appointmentDialog" :style="{ width: '50vw' }" :header="appointmentDialogHeader"
-                    :modal="true" class="p-fluid">
-
-                    <div class="field">
-                        <label for="patient_id">Paciente</label>
-                        <Dropdown v-model="appointment.patient_id" :options="patients" optionLabel="name"
-                            placeholder="Selecione um Paciente" :required="true" />
-                    </div>
-
-                    <div class="formgrid grid">
-                        <div class="field col">
-                            <label for="appointment_date">Data</label>
-                            <Calendar id="calendar-24h" v-model="appointment.appointment_date" showTime
-                                dateFormat="dd/mm/yy" hourFormat="24" />
-                        </div>
-
-                        <div class="field col">
-                            <label for="status_id">Status</label>
-                            <Dropdown v-model="appointment.status_id" :options="appointmentStatus" optionLabel="name"
-                                placeholder="Selecione um Status" :required="true" />
-                        </div>
-                        <div v-if="selectedAppointmentStatusData">
-                            <h3>Dados Carregados:</h3>
-                            <p>{{ selectedAppointmentStatusData }}</p>
-                        </div>
-                    </div>
-
-                    <div class="field">
-                        <label for="professor_id">Pisicólogo</label>
-                        <Dropdown v-model="appointment.professor_id" :options="professors" optionLabel="name"
-                            placeholder="Selecione um Psicólogo" :required="true" />
-                    </div>
-
-                    <div class="field">
-                        <label for="notes">Notas</label>
-                        <Textarea v-model="appointment.notes" id="notes" autoResize rows="5" cols="30" />
-                    </div>
-
-                    <template #footer>
-                        <Button label="Cancelar" icon="pi pi-times" severity="warning" text @click="hideDialog" />
-                        <Button label="Salvar" icon="pi pi-check" text @click="savePatientAppointment" />
-                    </template>
-                </Dialog>
             </div>
         </div>
     </div>
