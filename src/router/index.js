@@ -150,12 +150,17 @@ const router = createRouter({
                     path: '/consultations',
                     name: 'consultations',
                     component: () => import('@/views/pages/Consultations.vue')
+                }, {
+                    path: '/consultation',
+                    name: 'consultation',
+                    component: () => import('@/views/pages/Consultation.vue')
                 },
                 {
                     path: '/documentation',
                     name: 'documentation',
                     component: () => import('@/views/utilities/Documentation.vue')
                 }
+                
             ]
         },
         {

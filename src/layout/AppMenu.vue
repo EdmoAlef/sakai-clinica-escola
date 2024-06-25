@@ -16,6 +16,12 @@ const model = ref([
             { label: 'Consultas', icon: 'pi pi-fw pi-file-edit', to: '/consultations' },
         ]
     },
+    {
+        label: 'Psicólogo',
+        items: [
+            { label: 'Consulta', icon: 'pi pi-fw pi-file-edit', to: '/consultation' },
+        ]
+    },
     
     // {
     //     label: 'Prime Blocks',
