@@ -1,16 +1,32 @@
 <script setup>
 import { FilterMatchMode } from 'primevue/api';
-import { ref, onMounted, onBeforeMount } from 'vue';
+import { ref, reactive, onMounted, onBeforeMount } from 'vue';
+import { useToast } from 'primevue/usetoast';
 import http from '@/service/Axios';
+import FullCalendar from '@fullcalendar/vue3';
+import dayGridPlugin from '@fullcalendar/daygrid';
+import timeGridPlugin from '@fullcalendar/timegrid';
+import interactionPlugin from '@fullcalendar/interaction';
+import ptBrLocale from '@fullcalendar/core/locales/pt-br';
 
+const initialEvents = ref([]);
+const patients = ref([]);
+const fullCalendar = ref(null);
+
+
+const appointment = ref({});
 const appointments = ref([]);
-const selectedAppointments = ref([]);
+const appointmentStatus = ref([]);
+const appointmentDialog = ref(false);
+const appointmentDialogHeader = ref('');
 
-const dt = ref(null);
-const filters = ref({});
+const selectedAppointmentStatusData = ref(null);
 
-onBeforeMount(() => {
-    initFilters();
+const professors = ref([]);
+
+const submitted = ref(false);
+
+onBeforeMount(async () => {
     initDefaultValues();
 });
 
@@ -18,72 +34,115 @@ onMounted(() => {
     getAppointments();
 });
 
+
+const handleEventClick =  async (info) => {
+    console.log(info.event.id);
+    await http.get(`appointments/${info.event.id}`).then((response) => {
+        appointment.value = response.data;
+        appointmentDialog.value = true;
+        appointmentDialogHeader.value = `Consulta de ${appointment.value.patients.users.name}`;
+    });
+
+}
+
+const calendarOptions = reactive({
+    plugins: [
+        dayGridPlugin,
+        timeGridPlugin,
+        interactionPlugin,
+    ],
+    locale: ptBrLocale,
+    displayEventTime: true,
+    headerToolbar: {
+        left: 'prev,next today',
+        center: 'title',
+        right: 'dayGridMonth,timeGridWeek,timeGridDay'
+    },
+    initialView: 'timeGridWeek',
+    events: initialEvents,
+    editable: true,
+    selectMirror: true,
+    timeFormat: 'HH:mm',
+    dayMaxEvents: true,
+    weekends: true,
+    eventClick: handleEventClick
+});
+
 const initDefaultValues = () => { };
 
+const hideDialog = () => {
+    appointmentDialog.value = false;
+    appointmentDialogHeader.value = '';
+    submitted.value = false;
+    appointment.value = {};
+};
+
 const getAppointments = async () => {
-    await http.get('consultations').then((response) => {
+    await http.get('appointments').then((response) => {
         appointments.value = response.data;
+        appointments.value.map(appointment => {
+            initialEvents.value.push({
+                id: appointment.id,
+                title: `Consulta : ${appointment.patients.users.name}`,
+                start: new Date(appointment.appointment_date).toISOString()
+            });
+        });
+        calendarOptions.events = initialEvents.value;
     });
 };
 
-const initFilters = () => {
-    filters.value = {
-        global: { value: null, matchMode: FilterMatchMode.CONTAINS }
-    };
-};
-
 </script>
+<style scoped>
+.calendar :deep(.fc-button-primary) {
+    background-color: var(--primary-color) !important;
+    border: none;
+}
+</style>
 
 <template>
     <div class="grid">
         <div class="col-12">
-            <div class="card">
-                <DataTable ref="dt" :value="appointments" v-model:selection="selectedAppointments" dataKey="id"
-                    :paginator="true" :rows="10" :filters="filters"
-                    paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
-                    :rowsPerPageOptions="[5, 10, 25]"
-                    currentPageReportTemplate="Mostrando {first} - {last} de {totalRecords}">
-                    <template #header>
-                        <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
-                            <h5 class="m-0">Consultas</h5>
-                            <IconField iconPosition="left" class="block mt-2 md:mt-0">
-                                <InputIcon class="pi pi-search" />
-                                <InputText class="w-full sm:w-auto" v-model="filters['global'].value"
-                                    placeholder="Search..." />
-                            </IconField>
-                        </div>
-                    </template>
-                    <Column field="id" header="ID" :sortable="true" headerStyle="min-width:10rem;">
-                        <template #body="slotProps">
-                            <span class="p-column-title">ID</span>
-                            {{ slotProps.data.id }}
-                        </template>
-                    </Column>
-                    <Column field="appointment_date" header="Data" :sortable="true" headerStyle="min-width:10rem;">
-                        <template #body="slotProps">
-                            <span class="p-column-title">Data Agendada</span>
-                            {{ new Date(slotProps.data.schedule).toLocaleString() }}
-                        </template>
-                    </Column>
-                    <Column field="patient" header="Paciente" :sortable="true" headerStyle="min-width:10rem;">
-                        <template #body="slotProps">
-                            <span class="p-column-title">Paciente</span>
-                            {{ slotProps.data.appointments.patients.users.name }}
-                        </template>
-                    </Column>
-                    <Column field="professor" header="Psicólogo" :sortable="true" headerStyle="min-width:10rem;">
-                        <template #body="slotProps">
-                            <span class="p-column-title">Psicologo</span>
-                            {{ slotProps.data.appointments.professors.users.name }}
-                        </template>
-                    </Column>
-                    <Column headerStyle="min-width:10rem;" header="Ações">
-                        <template #body="slotProps">
-                            <Button icon="pi pi-calendar" class="mr-2" severity="info" rounded />
-                        </template>
-                    </Column>
-                </DataTable>
+            <div class="card calendar">
+                <FullCalendar ref='fullCalendar' :options="calendarOptions" />
             </div>
+        </div>
+        <div class="col-12">
+
+            <Dialog v-model:visible="appointmentDialog" :style="{ width: '25vw' }" :header="appointmentDialogHeader"
+                :modal="true" class="p-fluid">
+                <div class="grid">
+                    <div class="col-6">
+                        <span class="text-900 font-semibold block mb-2">Paciente</span> 
+                            <p class="flex align-items-center m-0" >
+                                {{appointment.patients.users.name}}
+                            </p>
+                    </div>
+                    <div class="col-6">
+                        <span class="text-900 font-semibold block mb-2">Horário</span> 
+                            <p class="flex align-items-center m-0" >
+                                <i class="pi pi-fw pi-clock text-700 mr-2"></i>
+                                {{new Date(appointment.appointment_date).toLocaleString('pt-Br')}}
+                            </p>
+                    </div>
+                    <div class="col-12">
+                        <span class="text-900 font-semibold block mb-2">Profissional</span> 
+                            <p class="flex align-items-center m-0" >
+                                {{appointment.professors.users.name}}
+                            </p>
+                    </div>
+                    <div class="col-12">
+                        <span class="text-900 font-semibold block mb-2">Notas</span>
+                        <span class="block mb-3">
+                            {{ appointment.notes }}
+                        </span>
+                    </div>
+                </div>
+               
+                <template #footer>
+                    <Button label="Cancelar" icon="pi pi-times" severity="warning" text @click="hideDialog" />
+                    <Button label="Iniciar Consulta" icon="pi pi-check" text @click="savePatientAppointment" />
+                </template>
+            </Dialog>
         </div>
     </div>
 </template>
