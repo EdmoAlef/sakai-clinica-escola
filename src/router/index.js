@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import AppLayout from '@/layout/AppLayout.vue';
+import authService from '@/service/authService/AuthService.js';
 
 const router = createRouter({
     history: createWebHistory(),
@@ -11,29 +12,30 @@ const router = createRouter({
                 {
                     path: '/',
                     name: 'dashboard',
+                    authRequired : true,
                     component: () => import('@/views/Dashboard.vue')
                 },
-                {
+                /* {
                     path: '/uikit/formlayout',
                     name: 'formlayout',
                     component: () => import('@/views/uikit/FormLayout.vue')
-                },
-                {
+                }, */
+                /* {
                     path: '/uikit/input',
                     name: 'input',
                     component: () => import('@/views/uikit/Input.vue')
-                },
-                {
+                }, */
+                /* {
                     path: '/uikit/floatlabel',
                     name: 'floatlabel',
                     component: () => import('@/views/uikit/FloatLabel.vue')
-                },
-                {
+                }, */
+                /* {
                     path: '/uikit/invalidstate',
                     name: 'invalidstate',
                     component: () => import('@/views/uikit/InvalidState.vue')
-                },
-                {
+                }, */
+                /* {
                     path: '/uikit/button',
                     name: 'button',
                     component: () => import('@/views/uikit/Button.vue')
@@ -68,8 +70,8 @@ const router = createRouter({
                     path: '/uikit/media',
                     name: 'media',
                     component: () => import('@/views/uikit/Media.vue')
-                },
-                {
+                }, */
+                /* {
                     path: '/uikit/menu',
                     component: () => import('@/views/uikit/Menu.vue'),
                     children: [
@@ -135,31 +137,36 @@ const router = createRouter({
                     path: '/pages/crud',
                     name: 'crud',
                     component: () => import('@/views/pages/Crud.vue')
-                },
+                }, */
                 {
                     path: '/users',
                     name: 'users',
+                    authRequired : true,
                     component: () => import('@/views/pages/Users.vue')
                 },
                 {
                     path: '/appointments',
                     name: 'appointments',
+                    authRequired : true,
                     component: () => import('@/views/pages/Appointments.vue')
                 },
                 {
                     path: '/consultations',
                     name: 'consultations',
+                    authRequired : true,
                     component: () => import('@/views/pages/Consultations.vue')
                 }, {
                     path: '/consultation',
                     name: 'consultation',
+                    authRequired : true,
                     component: () => import('@/views/pages/Consultation.vue')
-                },
+                }
+                /* ,
                 {
                     path: '/documentation',
                     name: 'documentation',
                     component: () => import('@/views/utilities/Documentation.vue')
-                }
+                } */
                 
             ]
         },
@@ -190,6 +197,18 @@ const router = createRouter({
             component: () => import('@/views/pages/auth/Error.vue')
         }
     ]
+});
+
+router.beforeEach((to, from, next) => {
+    const publicPages = ['/auth/login', '/auth/error', '/auth/access'];
+    const authRequired = !publicPages.includes(to.path);
+    const loggedIn = localStorage.getItem('user');
+
+    if (authRequired && !loggedIn) {
+        return next('/auth/login');
+    }
+
+    next();
 });
 
 export default router;

@@ -413,7 +413,7 @@ const initFilters = () => {
                     </template>
                 </Dialog>
 
-                <Dialog v-model:visible="userProfileDialog" :style="{ width: '600px' }" header="Perfils do Usuário"
+                <Dialog v-model:visible="userProfileDialog" :style="{ width: '600px' }" header="Perfil do Usuário"
                     :modal="true" class="p-fluid">
                     <img :src="'/demo/images/product/' + user.image" :alt="user.image" v-if="user.image" width="150"
                         class="mt-0 mx-auto mb-5 block shadow-2" />

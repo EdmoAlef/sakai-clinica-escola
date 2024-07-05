@@ -50,7 +50,6 @@ const initDefaultValues = () => {
     };
 
     anamnese.value = {
-        id: '',
         patient_id: '',
         consultation_reason: '',
         medical_history: '',
@@ -113,8 +112,10 @@ const getConsultation = async () => {
 
 const getAnamnese = async () => {
     await http.get(`anamneses/patients/${patient.value.id}`).then((response) => {
-        anamneses.value = response.data;
-        anamnese.value = anamneses.value[0];
+        console.log(response.data)
+        if (response.data.length > 0) {
+            anamnese.value = response.data[0];
+        }
     });
 };
 
@@ -127,19 +128,7 @@ const getClinicalRecords = async () => {
 //inserir ou atualizar anamnese
 const saveAnamnese = async () => {
     submitted.value = true;
-    const anamneseData = {
-        id: anamnese.value.id,
-        patient_id: patient.value.id,
-        consultation_reason: anamnese.value.consultation_reason,
-        medical_history: anamnese.value.medical_history,
-        psychological_history: anamnese.value.psychological_history,
-        family_history: anamnese.value.family_history,
-        disorder_history: anamnese.value.disorder_history,
-        significant_events: anamnese.value.significant_events,
-        interpersonal_relationships: anamnese.value.interpersonal_relationships,
-        behavioral_development: anamnese.value.behavioral_development,
-        emotional_development: anamnese.value.emotional_development
-    };
+    let anamneseData = { ...anamnese.value };
 
     let required = [
         'patient_id'
@@ -158,10 +147,11 @@ const saveAnamnese = async () => {
     if (required.some(field => !anamneseData[field])) {
         return;
     }
-
-    if (!anamnese.value.id) {
-        await http.post('anamneses', anamneseData).then(() => {
+    console.log(anamneseData?.value?.id)
+    if (!anamneseData?.value?.id) {
+        await http.post('anamneses', anamneseData).then((data) => {
             submitted.value = false;
+
             toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Anamnese Salva Com Sucesso', life: 4000 });
         }).catch(() => {
             toast.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao Salvar Anamnese', life: 4000 });
@@ -299,6 +289,10 @@ const saveClinicalRecord = async () => {
 
         <div class="col-12">
             <Panel header="Anamnese" :toggleable="true" :collapsed="true">
+                <!-- <div class="card-header mb-4 flex">
+                    <h5>Anamnese</h5>
+                    <Button label="Adicionar Anamnese" icon="pi pi-plus" class="ml-auto" @click="saveAnamnese" />
+                </div> -->
                 <div class="p-fluid formgrid grid">
                     <div class="field col-12 md:col-6">
                         <label for="consultation_reason">Motivo da Consulta</label>
