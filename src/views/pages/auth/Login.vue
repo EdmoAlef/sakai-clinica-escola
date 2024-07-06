@@ -2,7 +2,7 @@
 import { useLayout } from '@/layout/composables/layout';
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import authService from '@/service/authService/AuthService'; // Ajuste o caminho conforme necessário
+import {useAuthStore} from '@/service/authService/AuthService'; // Ajuste o caminho conforme necessário
 import InputText from 'primevue/inputtext';
 import Password from 'primevue/password';
 import Checkbox from 'primevue/checkbox';
@@ -19,8 +19,9 @@ const logoUrl = computed(() => {
 });
 
 const handleLogin = async () => {
+    const authStore = useAuthStore();
     try {
-        await authService.login({ email: email.value, password: password.value });
+        await authStore.login({ email: email.value, password: password.value });
         router.push('/');
     } catch (error) {
         console.error("Failed to login:", error);
